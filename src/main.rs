@@ -1,13 +1,9 @@
-mod cmd_clean;
-mod cmd_env;
-mod cmd_install;
-mod cmd_list;
-mod cmd_remove;
-mod cmd_search;
-mod cmd_set;
+mod cmd;
+mod downloader;
+mod misc;
 
 use clap::Parser;
-use goup_misc::consts;
+use misc::consts;
 use shadow_rs::shadow;
 use std::env::consts::{ARCH, OS};
 
@@ -106,13 +102,14 @@ enum Cli {
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     use Cli::*;
+
     match cli {
-        Install { toolchain, host } => cmd_install::run(toolchain, &host),
-        List => cmd_list::run(),
-        Remove { version } => cmd_remove::run(version),
-        Search { filter, host } => cmd_search::run(filter, host),
-        Set { version } => cmd_set::run(version),
-        Env => cmd_env::run(),
-        Clean { yes } => cmd_clean::run(yes),
+        Install { toolchain, host } => cmd::cmd_install(toolchain, &host),
+        List => cmd::cmd_list(),
+        Remove { version } => cmd::cmd_remove(version),
+        Search { filter, host } => cmd::cmd_search(filter, host),
+        Set { version } => cmd::cmd_set(version),
+        Env => cmd::cmd_env(),
+        Clean { yes } => cmd::cmd_clean(yes),
     }
 }

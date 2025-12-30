@@ -1,116 +1,97 @@
-use std::fs;
-
-use semver::Version as SemVersion;
-
-use crate::Dir;
+use semver::Version as SemVer;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Version {
     // Version: 1.21.1
-    pub version: SemVersion,
+    pub version: SemVer,
     // active or not
     pub active: bool,
 }
 
-impl Version {
-    /// initializes the environment file.
-    pub fn init_env(s: &str) -> anyhow::Result<()> {
-        let goup_home = Dir::goup_home()?;
-        if !goup_home.exists() {
-            fs::create_dir_all(&goup_home)?;
-        }
-        let env_file = goup_home.env();
-        fs::write(env_file, s)?;
-        Ok(())
+/// normalize the version string.
+/// 1.21.1   -> go1.21.1
+/// go1.21.1 -> go1.21.1
+/// tip      -> gotip
+/// gotip    -> gotip
+pub fn normalize(ver: &str) -> String {
+    if ver.starts_with("go") {
+        ver.to_string()
+    } else {
+        format!("go{ver}")
     }
+}
 
-    /// normalize the version string.
-    /// 1.21.1   -> go1.21.1
-    /// go1.21.1 -> go1.21.1
-    /// tip      -> gotip
-    /// gotip    -> gotip
-    pub fn normalize(ver: &str) -> String {
-        if ver.starts_with("go") {
-            ver.to_string()
-        } else {
-            format!("go{ver}")
-        }
-    }
-    /// semantic go version string.
-    /// 1           -> 1.0.0
-    /// 1.21        -> 1.21.0
-    /// 1.21rc2     -> 1.21.0-rc2
-    /// 1.21.1rc2   -> 1.21.1-rc2
-    /// 1.21-rc2    -> 1.21.0-rc2
-    /// 1.21.1-rc2  -> 1.21.1-rc2
-    /// 1.21.1      -> 1.21.1
-    pub fn semantic(ver: &str) -> anyhow::Result<SemVersion> {
-        let count_dot = |name: &str| name.chars().filter(|&v| v == '.').count();
-        let name = ver
-            .find("alpha")
-            .or_else(|| ver.find("beta"))
-            .or_else(|| ver.find("rc"))
-            .map_or_else(
-                || match count_dot(ver) {
-                    0 => format!("{ver}.0.0"),
-                    1 => format!("{ver}.0"),
-                    _ => ver.to_string(),
-                },
-                |idx| {
-                    let start = &ver[..idx].trim_end_matches('-');
-                    if count_dot(start) == 2 {
-                        format!("{}-{}", start, &ver[idx..])
-                    } else {
-                        format!("{}.0-{}", start, &ver[idx..])
-                    }
-                },
-            );
-        Ok(SemVersion::parse(&name)?)
-    }
+/// semantic go version string.
+/// 1           -> 1.0.0
+/// 1.21        -> 1.21.0
+/// 1.21rc2     -> 1.21.0-rc2
+/// 1.21.1rc2   -> 1.21.1-rc2
+/// 1.21-rc2    -> 1.21.0-rc2
+/// 1.21.1-rc2  -> 1.21.1-rc2
+/// 1.21.1      -> 1.21.1
+pub fn semantic(ver: &str) -> anyhow::Result<SemVer> {
+    let count_dot = |name: &str| name.chars().filter(|&v| v == '.').count();
+    let name = ver
+        .find("alpha")
+        .or_else(|| ver.find("beta"))
+        .or_else(|| ver.find("rc"))
+        .map_or_else(
+            || match count_dot(ver) {
+                0 => format!("{ver}.0.0"),
+                1 => format!("{ver}.0"),
+                _ => ver.to_string(),
+            },
+            |idx| {
+                let start = &ver[..idx].trim_end_matches('-');
+                if count_dot(start) == 2 {
+                    format!("{}-{}", start, &ver[idx..])
+                } else {
+                    format!("{}.0-{}", start, &ver[idx..])
+                }
+            },
+        );
+    Ok(SemVer::parse(&name)?)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::Version;
-    use semver::Version as SemVersion;
+    use super::{normalize, semantic};
+    use semver::Version as SemVer;
 
     #[test]
     fn test_normalize() {
-        assert_eq!(Version::normalize("1.21.1"), "go1.21.1",);
-        assert_eq!(Version::normalize("go1.21.1"), "go1.21.1",);
-        assert_eq!(Version::normalize("tip"), "gotip",);
-        assert_eq!(Version::normalize("gotip"), "gotip",);
+        assert_eq!(normalize("1.21.1"), "go1.21.1",);
+        assert_eq!(normalize("go1.21.1"), "go1.21.1",);
+        assert_eq!(normalize("tip"), "gotip",);
+        assert_eq!(normalize("gotip"), "gotip",);
     }
 
     #[test]
     fn test_semantic() {
+        assert_eq!(semantic("1").unwrap(), "1.0.0".parse::<SemVer>().unwrap(),);
         assert_eq!(
-            Version::semantic("1").unwrap(),
-            "1.0.0".parse::<SemVersion>().unwrap(),
+            semantic("1.21").unwrap(),
+            "1.21.0".parse::<SemVer>().unwrap(),
         );
         assert_eq!(
-            Version::semantic("1.21").unwrap(),
-            "1.21.0".parse::<SemVersion>().unwrap(),
+            semantic("1.21rc2").unwrap(),
+            "1.21.0-rc2".parse::<SemVer>().unwrap(),
         );
         assert_eq!(
-            Version::semantic("1.21rc2").unwrap(),
-            "1.21.0-rc2".parse::<SemVersion>().unwrap(),
+            semantic("1.21.1rc2").unwrap(),
+            "1.21.1-rc2".parse::<SemVer>().unwrap(),
         );
         assert_eq!(
-            Version::semantic("1.21.1rc2").unwrap(),
-            "1.21.1-rc2".parse::<SemVersion>().unwrap(),
+            semantic("1.21-rc2").unwrap(),
+            "1.21.0-rc2".parse::<SemVer>().unwrap(),
         );
         assert_eq!(
-            Version::semantic("1.21-rc2").unwrap(),
-            "1.21.0-rc2".parse::<SemVersion>().unwrap(),
+            semantic("1.21.1-rc2").unwrap(),
+            "1.21.1-rc2".parse::<SemVer>().unwrap(),
         );
         assert_eq!(
-            Version::semantic("1.21.1-rc2").unwrap(),
-            "1.21.1-rc2".parse::<SemVersion>().unwrap(),
-        );
-        assert_eq!(
-            Version::semantic("1.21.1").unwrap(),
-            "1.21.1".parse::<SemVersion>().unwrap(),
+            semantic("1.21.1").unwrap(),
+            "1.21.1".parse::<SemVer>().unwrap(),
         );
     }
 
@@ -428,7 +409,7 @@ mod tests {
             "1.24.0",
         ];
         for ver in go_versions {
-            assert!(Version::semantic(ver).is_ok())
+            assert!(semantic(ver).is_ok())
         }
     }
 }

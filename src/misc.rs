@@ -1,3 +1,12 @@
+mod path;
+mod toolchain;
+
+pub mod consts;
+pub mod version;
+
+pub use path::GoupPath;
+pub use toolchain::{Toolchain, ToolchainFilter};
+
 use std::fs;
 use std::fs::DirEntry;
 use std::ops::Deref;
@@ -12,9 +21,7 @@ use semver::Op;
 use semver::VersionReq;
 use serde::{Deserialize, Serialize};
 
-use crate::Dir;
-use crate::ToolchainFilter;
-use crate::Version;
+use version::Version;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GoFile {
@@ -28,10 +35,10 @@ pub struct GoFile {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub(crate) struct GoRelease {
+pub struct GoRelease {
     pub version: String,
     pub stable: bool,
-    // pub files: Vec<GoFile>,
+    pub files: Vec<GoFile>,
 }
 
 pub fn list_upstream_go_versions_filter(
@@ -91,7 +98,7 @@ pub fn match_version_req(host: &str, ver_pattern: &str) -> anyhow::Result<String
         return Ok(ver_pattern.trim_start_matches('=').to_owned());
     }
     for ver in list_upstream_go_versions(host)?.iter().rev() {
-        if ver_req.matches(&Version::semantic(ver)?) {
+        if ver_req.matches(&version::semantic(ver)?) {
             return Ok(ver.to_owned());
         }
     }
@@ -121,7 +128,7 @@ pub fn get_upstream_latest_go_version(host: &str) -> anyhow::Result<String> {
 
 /// list locally installed go version.
 pub fn list_go_version() -> anyhow::Result<Vec<Version>> {
-    let goup_home = Dir::goup_home()?;
+    let goup_home = GoupPath::new()?;
     // may be .goup not exist
     if !goup_home.exists() {
         return Ok(Vec::new());
@@ -143,8 +150,8 @@ pub fn list_go_version() -> anyhow::Result<Vec<Version>> {
                 return None;
             }
             Some(Version {
-                version: Version::semantic(ver.trim_start_matches("go")).ok()?,
-                active: current.is_ok_and(|vv| vv == goup_home.version_go(ver).deref()),
+                version: version::semantic(ver.trim_start_matches("go")).ok()?,
+                active: current.is_ok_and(|vv| vv == goup_home.version_go(&ver).deref()),
             })
         })
         .collect();
@@ -154,8 +161,8 @@ pub fn list_go_version() -> anyhow::Result<Vec<Version>> {
 
 /// set active go version
 pub fn set_go_version(version: &str) -> anyhow::Result<()> {
-    let version = Version::normalize(version);
-    let goup_home = Dir::goup_home()?;
+    let version = version::normalize(version);
+    let goup_home = GoupPath::new()?;
     let original = goup_home.version_go(&version);
     if !original.exists() {
         anyhow::bail!("Go version {version} is not installed. Install it with `goup install`.");
@@ -179,8 +186,8 @@ pub fn set_go_version(version: &str) -> anyhow::Result<()> {
 
 /// remove the go version, if it is current active go version, will ignore deletion.
 pub fn remove_go_version(version: &str) -> anyhow::Result<()> {
-    let version = Version::normalize(version);
-    let version_dir = Dir::goup_home()?.version(&version);
+    let version = version::normalize(version);
+    let version_dir = GoupPath::new()?.version(&version);
     if version_dir.exists() {
         fs::remove_dir_all(&version_dir)?;
     }
@@ -211,50 +218,18 @@ pub fn remove_go_versions(vers: &[String]) -> anyhow::Result<()> {
 /// current active go version
 pub fn current_go_version() -> anyhow::Result<Option<String>> {
     // may be current not exist
-    let current = Dir::goup_home()?.current().read_link().ok().and_then(|p| {
+    let current = GoupPath::new()?.current().read_link().ok().and_then(|p| {
         p.parent()
             .and_then(|v| v.file_name().map(|vv| vv.to_string_lossy().to_string()))
     });
     Ok(current)
 }
 
-/// list `${HOME}/.goup/cache` directory items(only file, ignore directory).
-pub fn list_cache(contain_sha256: bool) -> anyhow::Result<Vec<String>> {
-    let goup_home = Dir::goup_home()?;
-    // may be .goup or .goup/cache not exist
-    if !goup_home.exists() || !goup_home.cache().exists() {
-        return Ok(Vec::new());
-    }
-    let dir: Result<Vec<DirEntry>, _> = goup_home.cache().read_dir()?.collect();
-    let mut archive_files: Vec<_> = dir?
-        .iter()
-        .filter_map(|v| {
-            if v.path().is_dir() {
-                return None;
-            }
-            let filename = v.file_name();
-            let filename = filename.to_string_lossy();
-            (contain_sha256 || !filename.ends_with(".sha256")).then(|| filename.to_string())
-        })
-        .collect();
-    archive_files.sort();
-    Ok(archive_files)
-}
-
 /// remove `${HOME}/.goup/cache` directory.
 pub fn remove_cache() -> anyhow::Result<()> {
-    let dl_dir = Dir::goup_home()?.cache();
+    let dl_dir = GoupPath::new()?.cache();
     if dl_dir.exists() {
         fs::remove_dir_all(&dl_dir)?;
-    }
-    Ok(())
-}
-
-/// remove `${HOME}/.goup` directory.
-pub fn remove_goup_home() -> anyhow::Result<()> {
-    let goup_home_dir = Dir::goup_home()?;
-    if goup_home_dir.exists() {
-        fs::remove_dir_all(&goup_home_dir)?;
     }
     Ok(())
 }

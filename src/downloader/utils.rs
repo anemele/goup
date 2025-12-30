@@ -1,5 +1,7 @@
 use std::env;
 
+use crate::misc::consts;
+
 /// go_version_archive returns the zip or tar.gz of the given Go version.
 /// go1.21.5.linux-amd64.tar.gz, go1.21.5.windows-amd64.zip
 pub fn go_version_archive(version: &str) -> String {
@@ -28,7 +30,7 @@ pub fn archive_sha256(archive_filename: &str) -> String {
 /// archive_url returns returns the zip or tar.gz URL of the given Go version.
 #[inline]
 pub fn archive_url(archive_filename: &str) -> (String, String) {
-    let host = goup_misc::consts::go_download_base_url();
+    let host = consts::go_download_base_url();
     let url0 = format!("{host}/{archive_filename}");
     let url1 = format!("{}.sha256", &url0);
     (url0, url1)
@@ -77,12 +79,12 @@ fn test_archive() {
     #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
     assert_eq!(
         archive_filename,
-        format!("{}.windows-amd64.zip", TEST_VERSION)
+        format!("{TEST_VERSION}.windows-amd64.zip")
     );
 
     assert!(archive_sha256(&archive_filename).ends_with(".sha256"));
 
     let (archive_url, archive_sha256_url) = archive_url(&archive_filename);
-    assert!(archive_url.starts_with(&format!("https://dl.google.com/go/{}", TEST_VERSION)));
-    assert!(archive_sha256_url.starts_with(&format!("https://dl.google.com/go/{}", TEST_VERSION)));
+    assert!(archive_url.starts_with(&format!("https://dl.google.com/go/{TEST_VERSION}")));
+    assert!(archive_sha256_url.starts_with(&format!("https://dl.google.com/go/{TEST_VERSION}")));
 }

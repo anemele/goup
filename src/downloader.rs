@@ -1,3 +1,6 @@
+mod archived;
+mod utils;
+
 use std::io::Read;
 use std::io::Write;
 use std::path::Path;
@@ -10,14 +13,12 @@ use reqwest::blocking::Client;
 use reqwest::header::CONTENT_LENGTH;
 use sha2::{Digest, Sha256};
 
-use goup_misc::Dir;
-
-use crate::archived::Unpack;
-use crate::utils;
+use crate::misc::GoupPath;
+use archived::Unpack;
 
 pub fn install_go_version(version: &str) -> anyhow::Result<()> {
-    let goup_home = Dir::goup_home()?;
-    let version_dest_dir = goup_home.version(version);
+    let goup_path = GoupPath::new()?;
+    let version_dest_dir = goup_path.version(version);
 
     let mp = MultiProgress::new();
     let sp = mp.add(ProgressBar::new_spinner());
@@ -25,13 +26,13 @@ pub fn install_go_version(version: &str) -> anyhow::Result<()> {
     sp.set_message(format!("Installing {version}"));
 
     // 是否已解压成功并且存在
-    if goup_home.is_dot_unpacked_success_file_exists(version) {
+    if goup_path.is_dot_unpacked_success_file_exists(version) {
         sp.finish_with_message(format!("Already installed {version}"));
         return Ok(());
     }
 
     // download directory
-    let dl_dest_dir = goup_home.cache();
+    let dl_dest_dir = goup_path.cache();
     // 压缩包文件名称
     let archive_filename = utils::go_version_archive(version);
     // 压缩包sha256文件名称
@@ -79,7 +80,7 @@ pub fn install_go_version(version: &str) -> anyhow::Result<()> {
     sp.finish_and_clear();
 
     // 设置解压成功
-    goup_home.create_dot_unpacked_success_file(version)?;
+    goup_path.create_dot_unpacked_success_file(version)?;
     sp.finish_with_message(format!("Installed {version}"));
 
     Ok(())
