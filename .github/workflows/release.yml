@@ -32,14 +32,6 @@ jobs:
             os: ubuntu-latest
             ext: .tar.gz
 
-          - target: arm-unknown-linux-musleabihf
-            os: ubuntu-latest
-            ext: .tar.gz
-
-          - target: x86_64-apple-darwin
-            os: macos-13
-            ext: .tar.gz
-
           - target: aarch64-apple-darwin
             os: macos-14
             ext: .tar.gz
