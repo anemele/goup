@@ -31,26 +31,28 @@ pub fn normalize(ver: &str) -> String {
 /// 1.21.1      -> 1.21.1
 pub fn semantic(ver: &str) -> anyhow::Result<SemVer> {
     let count_dot = |name: &str| name.chars().filter(|&v| v == '.').count();
-    let name = ver
-        .find("alpha")
-        .or_else(|| ver.find("beta"))
-        .or_else(|| ver.find("rc"))
-        .map_or_else(
-            || match count_dot(ver) {
-                0 => format!("{ver}.0.0"),
-                1 => format!("{ver}.0"),
-                _ => ver.to_string(),
-            },
-            |idx| {
-                let start = &ver[..idx].trim_end_matches('-');
-                if count_dot(start) == 2 {
-                    format!("{}-{}", start, &ver[idx..])
-                } else {
-                    format!("{}.0-{}", start, &ver[idx..])
-                }
-            },
-        );
-    Ok(SemVer::parse(&name)?)
+    let release_channels = &["alpha", "beta", "rc"];
+
+    let name = if let Some(idx) = release_channels
+        .iter()
+        .find_map(|channel| ver.find(channel))
+    {
+        let start = &ver[..idx].trim_end_matches('-');
+        let end = &ver[idx..];
+        match count_dot(start) {
+            2 => format!("{start}-{end}"),
+            _ => format!("{start}.0-{end}"),
+        }
+    } else {
+        match count_dot(ver) {
+            0 => format!("{ver}.0.0"),
+            1 => format!("{ver}.0"),
+            _ => ver.to_string(),
+        }
+    };
+
+    let sv = SemVer::parse(&name)?;
+    Ok(sv)
 }
 
 #[cfg(test)]
@@ -68,30 +70,27 @@ mod tests {
 
     #[test]
     fn test_semantic() {
-        assert_eq!(semantic("1").unwrap(), "1.0.0".parse::<SemVer>().unwrap(),);
-        assert_eq!(
-            semantic("1.21").unwrap(),
-            "1.21.0".parse::<SemVer>().unwrap(),
-        );
+        assert_eq!(semantic("1").unwrap(), SemVer::parse("1.0.0").unwrap());
+        assert_eq!(semantic("1.21").unwrap(), SemVer::parse("1.21.0").unwrap());
         assert_eq!(
             semantic("1.21rc2").unwrap(),
-            "1.21.0-rc2".parse::<SemVer>().unwrap(),
+            SemVer::parse("1.21.0-rc2").unwrap(),
         );
         assert_eq!(
             semantic("1.21.1rc2").unwrap(),
-            "1.21.1-rc2".parse::<SemVer>().unwrap(),
+            SemVer::parse("1.21.1-rc2").unwrap(),
         );
         assert_eq!(
             semantic("1.21-rc2").unwrap(),
-            "1.21.0-rc2".parse::<SemVer>().unwrap(),
+            SemVer::parse("1.21.0-rc2").unwrap(),
         );
         assert_eq!(
             semantic("1.21.1-rc2").unwrap(),
-            "1.21.1-rc2".parse::<SemVer>().unwrap(),
+            SemVer::parse("1.21.1-rc2").unwrap(),
         );
         assert_eq!(
             semantic("1.21.1").unwrap(),
-            "1.21.1".parse::<SemVer>().unwrap(),
+            SemVer::parse("1.21.1").unwrap(),
         );
     }
 
