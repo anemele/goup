@@ -46,23 +46,11 @@ pub fn list_upstream_go_versions_filter(
     filter: Option<ToolchainFilter>,
 ) -> anyhow::Result<Vec<String>> {
     let ver = list_upstream_go_versions(host)?;
-    let re = filter.map_or_else(
-        || "(.+)".to_owned(),
-        |f| match f {
-            ToolchainFilter::Stable => {
-                r#"(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:\.(?:0|[1-9]\d*))?\b"#.to_string()
-            }
-            ToolchainFilter::Unstable => {
-                r#"(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:\.(?:0|[1-9]\d*))?(?:rc(?:0|[1-9]\d*))"#
-                    .to_string()
-            }
-            ToolchainFilter::Beta => {
-                r#"(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:\.(?:0|[1-9]\d*))?(?:beta(?:0|[1-9]\d*))"#
-                    .to_string()
-            }
-            ToolchainFilter::Filter(s) => format!("(.*{s}.*)"),
-        },
-    );
+    let re = if let Some(f) = filter {
+        f.re()
+    } else {
+        "(.+)".to_string()
+    };
     let re = Regex::new(&re)?;
     Ok(ver
         .into_iter()
