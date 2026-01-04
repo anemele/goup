@@ -621,7 +621,7 @@ dependencies = [
 
 [[package]]
 name = "goup-downloader"
-version = "0.14.0"
+version = "0.14.1"
 dependencies = [
  "anyhow",
  "flate2",
@@ -637,7 +637,7 @@ dependencies = [
 
 [[package]]
 name = "goup-misc"
-version = "0.14.0"
+version = "0.14.1"
 dependencies = [
  "anyhow",
  "dirs",
@@ -656,7 +656,7 @@ dependencies = [
 
 [[package]]
 name = "goup-rs"
-version = "0.14.0"
+version = "0.14.1"
 dependencies = [
  "anyhow",
  "clap",
