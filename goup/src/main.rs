@@ -1,10 +1,4 @@
-mod cmd_clean;
-mod cmd_env;
-mod cmd_install;
-mod cmd_list;
-mod cmd_remove;
-mod cmd_search;
-mod cmd_set;
+mod cmd;
 
 use clap::Parser;
 use goup_misc::consts;
@@ -105,14 +99,17 @@ enum Cli {
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
+
     use Cli::*;
+    use cmd::*;
+
     match cli {
-        Install { toolchain, host } => cmd_install::run(toolchain, &host),
-        List => cmd_list::run(),
-        Remove { version } => cmd_remove::run(version),
-        Search { filter, host } => cmd_search::run(filter, host),
-        Set { version } => cmd_set::run(version),
-        Env => cmd_env::run(),
-        Clean { yes } => cmd_clean::run(yes),
+        Install { toolchain, host } => cmd_install(toolchain, &host),
+        List => cmd_list(),
+        Remove { version } => cmd_remove(version),
+        Search { filter, host } => cmd_search(filter, host),
+        Set { version } => cmd_set(version),
+        Env => cmd_env(),
+        Clean { yes } => cmd_clean(yes),
     }
 }

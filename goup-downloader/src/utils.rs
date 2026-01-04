@@ -77,12 +77,12 @@ fn test_archive() {
     #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
     assert_eq!(
         archive_filename,
-        format!("{}.windows-amd64.zip", TEST_VERSION)
+        format!("{TEST_VERSION}.windows-amd64.zip")
     );
 
     assert!(archive_sha256(&archive_filename).ends_with(".sha256"));
 
     let (archive_url, archive_sha256_url) = archive_url(&archive_filename);
-    assert!(archive_url.starts_with(&format!("https://dl.google.com/go/{}", TEST_VERSION)));
-    assert!(archive_sha256_url.starts_with(&format!("https://dl.google.com/go/{}", TEST_VERSION)));
+    assert!(archive_url.starts_with(&format!("https://dl.google.com/go/{TEST_VERSION}")));
+    assert!(archive_sha256_url.starts_with(&format!("https://dl.google.com/go/{TEST_VERSION}")));
 }
